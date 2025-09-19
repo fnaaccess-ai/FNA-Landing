@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Password Reset</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; margin: 80px; }
+    .box { max-width: 500px; margin: auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+    input { padding: 8px; margin: 5px; width: 80%; }
+    button { padding: 10px 20px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2>🔑 Reset Password</h2>
+    <p>If this page opened from your email link, enter your new password below:</p>
+    <form action="#" method="post">
+      <input type="password" placeholder="New password"><br>
+      <input type="password" placeholder="Confirm new password"><br>
+      <button type="submit">Set New Password</button>
+    </form>
+    <p><small>(This page just confirms flow; your app must handle the actual reset via Supabase API)</small></p>
+  </div>
+</body>
+</html>
