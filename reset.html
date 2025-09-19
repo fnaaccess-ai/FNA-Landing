@@ -1,25 +1,109 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Password Reset</title>
+  <meta charset="utf-8" />
+  <title>Reset your password</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; margin: 80px; }
-    .box { max-width: 500px; margin: auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
-    input { padding: 8px; margin: 5px; width: 80%; }
-    button { padding: 10px 20px; margin-top: 10px; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 0; background:#f6f8fb; }
+    .wrap { max-width: 480px; margin: 8vh auto; background:#fff; padding: 24px; border-radius: 12px; box-shadow:0 6px 22px rgba(0,0,0,.08); }
+    h1 { font-size: 1.25rem; margin: 0 0 16px; }
+    p  { color:#334155; line-height:1.5; }
+    label { display:block; font-size:.9rem; margin:14px 0 6px; color:#0f172a; }
+    input[type="password"] { width:100%; padding:10px 12px; font-size:1rem; border:1px solid #cbd5e1; border-radius:8px; }
+    button { margin-top:16px; width:100%; padding:12px 14px; border:0; border-radius:10px; font-weight:600; cursor:pointer;
+             background:#0ea5e9; color:#fff; }
+    .muted { color:#64748b; font-size:.9rem; }
+    .msg { margin-top:12px; padding:10px 12px; border-radius:8px; }
+    .ok  { background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; }
+    .err { background:#fef2f2; color:#7f1d1d; border:1px solid #fecaca; }
+    .hide { display:none; }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-  <div class="box">
-    <h2>🔑 Reset Password</h2>
-    <p>If this page opened from your email link, enter your new password below:</p>
-    <form action="#" method="post">
-      <input type="password" placeholder="New password"><br>
-      <input type="password" placeholder="Confirm new password"><br>
-      <button type="submit">Set New Password</button>
+  <div class="wrap">
+    <h1>Reset your password</h1>
+    <p class="muted">Enter a new password for your account.</p>
+
+    <form id="form">
+      <label for="pw1">New password</label>
+      <input id="pw1" type="password" minlength="8" required />
+
+      <label for="pw2">Confirm new password</label>
+      <input id="pw2" type="password" minlength="8" required />
+
+      <button id="submitBtn" type="submit">Update password</button>
     </form>
-    <p><small>(This page just confirms flow; your app must handle the actual reset via Supabase API)</small></p>
+
+    <div id="msg" class="msg hide"></div>
   </div>
+
+<script>
+(async () => {
+  // TODO: fill these with your project values
+  const SUPABASE_URL = "https://YOUR-PROJECT.supabase.co";
+  const SUPABASE_ANON_KEY = "YOUR_PUBLIC_ANON_KEY";
+
+  const { createClient } = window.supabase;
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // Supabase puts the access token in the URL hash on recovery links
+  // e.g. https://.../reset.html#access_token=...&type=recovery
+  const params = new URLSearchParams(window.location.hash.slice(1));
+  const type = params.get("type");
+  const access_token = params.get("access_token");
+
+  const msg = document.getElementById('msg');
+  const form = document.getElementById('form');
+  const submitBtn = document.getElementById('submitBtn');
+
+  function show(kind, text) {
+    msg.className = `msg ${kind}`;
+    msg.textContent = text;
+    msg.classList.remove('hide');
+  }
+
+  // If the link didn’t include a recovery session, there’s nothing we can do.
+  if (type !== 'recovery' || !access_token) {
+    show('err', 'This reset link is invalid or has expired. Please request a new one from the app.');
+    form.classList.add('hide');
+    return;
+  }
+
+  // Set the session from the recovery token so updateUser is authorized
+  const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+    access_token,
+    refresh_token: access_token // Supabase accepts the same token for refresh in this special flow
+  });
+  if (sessionError) {
+    show('err', 'Could not start a secure reset session. Please request a new reset email.');
+    form.classList.add('hide');
+    return;
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const pw1 = document.getElementById('pw1').value.trim();
+    const pw2 = document.getElementById('pw2').value.trim();
+
+    if (pw1.length < 8) return show('err', 'Password must be at least 8 characters.');
+    if (pw1 !== pw2)   return show('err', 'Passwords do not match.');
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Updating…';
+
+    const { data, error } = await supabase.auth.updateUser({ password: pw1 });
+    if (error) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Update password';
+      return show('err', error.message || 'Could not update password. Please try again.');
+    }
+
+    show('ok', 'Your password has been updated. You can close this tab and sign in from the app.');
+    form.classList.add('hide');
+  });
+})();
+</script>
 </body>
 </html>
