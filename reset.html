@@ -41,18 +41,12 @@
 
 <script>
 (async () => {
-  // TODO: fill these with your project values
+  // 🔧 Fill these with your project values
   const SUPABASE_URL = "https://guxforrgbhabmrfmcbve.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd1eGZvcnJnYmhhYm1yZm1jYnZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc2MjA1NjUsImV4cCI6MjA3MzE5NjU2NX0.UfCHemXq8xQBEMX3saM9fA5cfp1C8mvU2Uvikww-N3Q";
 
   const { createClient } = window.supabase;
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-  // Supabase puts the access token in the URL hash on recovery links
-  // e.g. https://.../reset.html#access_token=...&type=recovery
-  const params = new URLSearchParams(window.location.hash.slice(1));
-  const type = params.get("type");
-  const access_token = params.get("access_token");
 
   const msg = document.getElementById('msg');
   const form = document.getElementById('form');
@@ -64,24 +58,36 @@
     msg.classList.remove('hide');
   }
 
-  // If the link didn’t include a recovery session, there’s nothing we can do.
+  // 1) Read tokens from the URL hash placed by Supabase verification
+  //    Example: /reset.html#access_token=...&refresh_token=...&type=recovery
+  const params = new URLSearchParams(location.hash.slice(1));
+  const type = params.get("type");
+  const access_token  = params.get("access_token");
+  const refresh_token = params.get("refresh_token") || access_token;
+
+  // 2) Validate presence of a recovery session
   if (type !== 'recovery' || !access_token) {
     show('err', 'This reset link is invalid or has expired. Please request a new one from the app.');
     form.classList.add('hide');
     return;
   }
 
-  // Set the session from the recovery token so updateUser is authorized
-  const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+  // 3) Start a session from the recovery token so updateUser is authorized
+  const { error: sessionError } = await supabase.auth.setSession({
     access_token,
-    refresh_token: access_token // Supabase accepts the same token for refresh in this special flow
+    refresh_token
   });
+
   if (sessionError) {
     show('err', 'Could not start a secure reset session. Please request a new reset email.');
     form.classList.add('hide');
     return;
   }
 
+  // 4) Remove tokens from the URL bar/history (clean UX + avoids copy/paste leaks)
+  history.replaceState(null, "", location.pathname + location.search);
+
+  // 5) Handle the password update
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const pw1 = document.getElementById('pw1').value.trim();
@@ -93,7 +99,7 @@
     submitBtn.disabled = true;
     submitBtn.textContent = 'Updating…';
 
-    const { data, error } = await supabase.auth.updateUser({ password: pw1 });
+    const { error } = await supabase.auth.updateUser({ password: pw1 });
     if (error) {
       submitBtn.disabled = false;
       submitBtn.textContent = 'Update password';
