@@ -26,8 +26,14 @@
       This helps prevent email scanners from consuming your one-time link.
     </p>
 
-    <button id="go" class="btn" type="button">Continue</button>
+    <label style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+      <input id="human" type="checkbox" />
+      <span>I am the account owner and want to reset my password.</span>
+     </label>
 
+    <button id="go" class="btn" type="button" disabled>Continue</button>
+
+    
     <div id="alt" style="margin-top:16px;">
       <p class="muted">If the button doesn’t work, copy and paste this link into your browser:</p>
       <div id="raw" class="box"></div>
