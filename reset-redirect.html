@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Continue to password reset</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --fg:#0f172a; --muted:#64748b; --card:#ffffff; --bg:#f6f8fb;
+      --btn:#0ea5e9; --btnText:#ffffff;
+      --errBg:#fef2f2; --errFg:#7f1d1d; --errBd:#fecaca;
+      --shadow:0 8px 24px rgba(0,0,0,.08);
+    }
+    * { box-sizing:border-box }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:var(--bg); color:var(--fg); }
+    .wrap { max-width: 560px; margin: 10vh auto; background:var(--card); padding: 24px; border-radius: 12px; box-shadow:var(--shadow); }
+    h1 { font-size: 1.25rem; margin: 0 0 10px; }
+    p  { line-height: 1.55; margin: 0 0 12px; color:#334155; }
+    ul { margin: 8px 0 0 20px; color: var(--muted); }
+    .muted { color: var(--muted); }
+    .btn { display:block; width:100%; margin-top:14px; padding:12px 16px; border:0; border-radius:10px; font-weight:600; cursor:pointer; background:var(--btn); color:var(--btnText); }
+    .err { display:none; margin-top:12px; padding:10px 12px; border-radius:8px; background:var(--errBg); color:var(--errFg); border:1px solid var(--errBd); }
+    .fallback { display:none; margin-top:14px; font-size:.92rem; color: var(--muted); word-break: break-all; }
+    code { background:#f1f5f9; padding:2px 6px; border-radius:6px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Continue to password reset</h1>
+    <p class="muted">
+      For security, please click the button below to continue to the secure reset page.
+      This helps prevent email scanners from using your one-time link.
+    </p>
+
+    <button id="goBtn" class="btn" type="button">Continue</button>
+
+    <div id="err" class="err"></div>
+
+    <div id="fallback" class="fallback">
+      If the button doesn’t work, copy and paste this link into your browser:
+      <br><br><code id="rawLink"></code>
+      <ul>
+        <li>Use a modern browser (Chrome, Edge, Safari, Firefox).</li>
+        <li>If the reset still fails, request a fresh email from the app.</li>
+      </ul>
+    </div>
+  </div>
+
+<script>
+(function () {
+  const params = new URLSearchParams(window.location.search);
+  const link = params.get("link"); // the real Supabase verify URL with the token
+
+  const btn = document.getElementById("goBtn");
+  const err = document.getElementById("err");
+  const fallback = document.getElementById("fallback");
+  const rawLink = document.getElementById("rawLink");
+
+  function showError(text) {
+    err.textContent = text;
+    err.style.display = "block";
+  }
+
+  if (!link) {
+    showError("This reset link is invalid. Please request a new password reset from the app.");
+    btn.disabled = true;
+    return;
+  }
+
+  // Optional: sanity check — ensure it points at Supabase verify endpoint.
+  try {
+    const u = new URL(link);
+    if (!/\/auth\/v1\/verify$/.test(u.pathname)) {
+      showError("This link is not recognized as a valid reset link.");
+      btn.disabled = true;
+      return;
+    }
+  } catch {
+    showError("This reset link is malformed.");
+    btn.disabled = true;
+    return;
+  }
+
+  // Copy/paste fallback
+  rawLink.textContent = link;
+  fallback.style.display = "block";
+
+  // IMPORTANT: We do NOT auto-redirect. Only navigate when the user clicks.
+  btn.addEventListener("click", () => {
+    window.location.href = link;
+  });
+})();
+</script>
+</body>
+</html>
