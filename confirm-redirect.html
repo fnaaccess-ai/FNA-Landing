@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Confirm your email</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Referrer-Policy" content="no-referrer" />
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin:0; background:#f6f8fb; }
+    .wrap { max-width: 520px; margin: 12vh auto; background:#fff; padding: 24px; border-radius: 12px; box-shadow:0 6px 22px rgba(0,0,0,.08); }
+    h1 { font-size: 1.2rem; margin: 0 0 8px; }
+    p  { color:#334155; line-height:1.55; margin: 10px 0; }
+    .muted { color:#64748b; font-size:.95rem; }
+    .btn { margin-top:14px; width:100%; padding:12px 14px; border:0; border-radius:10px; font-weight:600; cursor:pointer;
+           background:#0a66c2; color:#fff; }
+    .box { background:#f1f5f9; color:#0f172a; padding:10px 12px; border-radius:8px; word-break:break-all; }
+    .err { background:#fef2f2; color:#7f1d1d; border:1px solid #fecaca; padding:10px 12px; border-radius:8px; display:none; }
+    label.cb { display:flex; gap:8px; align-items:center; margin-top:8px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Confirm your email</h1>
+    <p class="muted">
+      To protect your one-time confirmation link from automated scanners, confirm you’re human and then continue.
+    </p>
+
+    <label class="cb">
+      <input id="human" type="checkbox" />
+      <span>I am the account owner and want to confirm my email.</span>
+    </label>
+
+    <button id="go" class="btn" type="button" disabled>Confirm email</button>
+
+    <div id="alt" style="margin-top:16px;">
+      <p class="muted">If the button doesn’t work, copy and paste this link into your browser:</p>
+      <div id="raw" class="box"></div>
+    </div>
+
+    <div id="error" class="err"></div>
+  </div>
+
+<script>
+(function () {
+  // Your Supabase project URL
+  const SUPABASE_URL = "https://guxforrgbhabmrfmcbve.supabase.co";
+
+  const $ = (id) => document.getElementById(id);
+  const qs = new URLSearchParams(window.location.search);
+
+  const errorBox = $('error');
+  const rawOut   = $('raw');
+  const goBtn    = $('go');
+  const humanCb  = $('human');
+
+  function showError(msg) {
+    errorBox.textContent = msg;
+    errorBox.style.display = 'block';
+    goBtn.disabled = true;
+  }
+
+  // Prefer ?link=<percent-encoded ConfirmationURL>
+  const linkParam = qs.get('link');
+  let targetUrl = null;
+
+  if (linkParam) {
+    try {
+      const decoded = decodeURIComponent(linkParam);
+      targetUrl = new URL(decoded);
+    } catch {
+      try { targetUrl = new URL(linkParam); } catch {}
+    }
+  }
+
+  // Fallback: build from top-level params (token/type/redirect_to)
+  if (!targetUrl) {
+    const token      = qs.get('token');
+    const typeTop    = qs.get('type') || 'signup';
+    const redirectTo = qs.get('redirect_to') || 'https://fnaaccess-ai.github.io/FNA-Landing/confirm.html';
+    if (!token) { showError('Missing confirmation link. Please request a new email from the app.'); return; }
+    const u = new URL(SUPABASE_URL + '/auth/v1/verify');
+    u.searchParams.set('token', token);
+    u.searchParams.set('type', typeTop);
+    if (redirectTo) u.searchParams.set('redirect_to', redirectTo);
+    targetUrl = u;
+  }
+
+  // Ensure type is present (signup for confirmation)
+  if (!targetUrl.searchParams.get('type')) {
+    targetUrl.searchParams.set('type', 'signup');
+  }
+
+  // Show exact destination for copy/paste (not clickable)
+  rawOut.textContent = targetUrl.toString();
+
+  // Human gate
+  humanCb.addEventListener('change', () => {
+    goBtn.disabled = !humanCb.checked;
+  });
+
+  goBtn.addEventListener('click', () => {
+    if (!humanCb.checked) return;
+    window.location.replace(targetUrl.toString()); // keep verify URL out of history
+  });
+})();
+</script>
+</body>
+</html>
