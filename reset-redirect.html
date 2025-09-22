@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <title>Continue to password reset</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Referrer-Policy" content="no-referrer" />
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin:0; background:#f6f8fb; }
     .wrap { max-width: 520px; margin: 12vh auto; background:#fff; padding: 24px; border-radius: 12px; box-shadow:0 6px 22px rgba(0,0,0,.08); }
@@ -13,7 +14,7 @@
     .btn { margin-top:14px; width:100%; padding:12px 14px; border:0; border-radius:10px; font-weight:600; cursor:pointer;
            background:#0ea5e9; color:#fff; }
     .box { background:#f1f5f9; color:#0f172a; padding:10px 12px; border-radius:8px; word-break:break-all; }
-    .err { background:#fef2f2; color:#7f1d1d; border:1px solid #fecaca; padding:10px 12px; border-radius:8px; }
+    .err { background:#fef2f2; color:#7f1d1d; border:1px solid #fecaca; padding:10px 12px; border-radius:8px; display:none; }
     a.inline { color:#0a66c2; }
   </style>
 </head>
@@ -21,24 +22,26 @@
   <div class="wrap">
     <h1>Continue to password reset</h1>
     <p class="muted">
-      For security, click the button below to continue to the secure reset page.
+      Click the button below to continue to the secure reset page.
       This helps prevent email scanners from consuming your one-time link.
     </p>
 
-    <button id="go" class="btn">Continue</button>
+    <button id="go" class="btn" type="button">Continue</button>
 
     <div id="alt" style="margin-top:16px;">
       <p class="muted">If the button doesn’t work, copy and paste this link into your browser:</p>
       <div id="raw" class="box"></div>
     </div>
 
-    <div id="error" class="err" style="display:none;"></div>
+    <div id="error" class="err"></div>
   </div>
 
 <script>
 (function () {
-  const params = new URLSearchParams(window.location.search);
-  const rawLink = params.get('link');
+  // ⬅️ Set your Supabase project URL
+  const SUPABASE_URL = "https://guxforrgbhabmrfmcbve.supabase.co";
+
+  const qs = new URLSearchParams(window.location.search);
   const errorBox = document.getElementById('error');
   const rawOut  = document.getElementById('raw');
   const goBtn   = document.getElementById('go');
@@ -46,36 +49,55 @@
   function showError(msg) {
     errorBox.textContent = msg;
     errorBox.style.display = 'block';
-  }
-
-  if (!rawLink) {
-    showError('Missing reset link. Please request a new password reset from the app.');
     goBtn.disabled = true;
-    return;
   }
 
-  let target;
-  try {
-    // The link may be HTML-escaped in emails; decode once
-    const decoded = decodeURIComponent(rawLink);
-    target = new URL(decoded);
-  } catch (e) {
-    showError('The reset link is malformed. Please request a new password reset.');
-    goBtn.disabled = true;
-    return;
+  // Preferred: ?link=<encodeURIComponent(full_verify_url)>
+  const linkParam = qs.get('link');
+  let targetUrl = null;
+
+  if (linkParam) {
+    // If the entire verify URL was passed in, it MUST be percent-encoded.
+    // We safely decode once; if it wasn't encoded, this still works for most cases.
+    try {
+      const decoded = decodeURIComponent(linkParam);
+      targetUrl = new URL(decoded);
+    } catch (e) {
+      // If decode fails, try raw
+      try { targetUrl = new URL(linkParam); }
+      catch (e2) { /* fallthrough to builder */ }
+    }
   }
 
-  // Safety net: if an email client stripped the type, add it back
-  if (!target.searchParams.get('type')) {
-    target.searchParams.set('type', 'recovery');
+  // Fallback: reconstruct from token/type/redirect_to at top-level
+  if (!targetUrl) {
+    const token = qs.get('token');
+    const type  = qs.get('type') || 'recovery';
+    const redirectTo = qs.get('redirect_to') || 'https://fnaaccess-ai.github.io/FNA-Landing/reset.html';
+
+    if (!token) {
+      showError('Missing reset link. Please request a new password reset from the app.');
+      return;
+    }
+    const u = new URL(SUPABASE_URL + '/auth/v1/verify');
+    u.searchParams.set('token', token);
+    u.searchParams.set('type', type);
+    if (redirectTo) u.searchParams.set('redirect_to', redirectTo);
+    targetUrl = u;
   }
 
-  // Show the exact destination for copy/paste
-  rawOut.textContent = target.toString();
+  // Ensure required params exist
+  if (!targetUrl.searchParams.get('type')) {
+    targetUrl.searchParams.set('type', 'recovery');
+  }
 
+  // Show exact destination for copy/paste
+  rawOut.textContent = targetUrl.toString();
+
+  // Only navigate on explicit human click
   goBtn.addEventListener('click', () => {
-    // Use replace() so the verify URL doesn’t remain in history
-    window.location.replace(target.toString());
+    // Avoid leaving verify URL in history:
+    window.location.replace(targetUrl.toString());
   });
 })();
 </script>
