@@ -15,25 +15,22 @@
            background:#0ea5e9; color:#fff; }
     .box { background:#f1f5f9; color:#0f172a; padding:10px 12px; border-radius:8px; word-break:break-all; }
     .err { background:#fef2f2; color:#7f1d1d; border:1px solid #fecaca; padding:10px 12px; border-radius:8px; display:none; }
-    a.inline { color:#0a66c2; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <h1>Continue to password reset</h1>
     <p class="muted">
-      Click the button below to continue to the secure reset page.
-      This helps prevent email scanners from consuming your one-time link.
+      To protect your one-time link from automated scanners, confirm you’re human and then continue.
     </p>
 
     <label style="display:flex;gap:8px;align-items:center;margin-top:8px;">
       <input id="human" type="checkbox" />
       <span>I am the account owner and want to reset my password.</span>
-     </label>
+    </label>
 
     <button id="go" class="btn" type="button" disabled>Continue</button>
 
-    
     <div id="alt" style="margin-top:16px;">
       <p class="muted">If the button doesn’t work, copy and paste this link into your browser:</p>
       <div id="raw" class="box"></div>
@@ -44,13 +41,14 @@
 
 <script>
 (function () {
-  // ⬅️ Set your Supabase project URL
+  // ⬅️ Your Supabase project URL
   const SUPABASE_URL = "https://guxforrgbhabmrfmcbve.supabase.co";
 
   const qs = new URLSearchParams(window.location.search);
   const errorBox = document.getElementById('error');
   const rawOut  = document.getElementById('raw');
   const goBtn   = document.getElementById('go');
+  const humanCb = document.getElementById('human');
 
   function showError(msg) {
     errorBox.textContent = msg;
@@ -63,28 +61,21 @@
   let targetUrl = null;
 
   if (linkParam) {
-    // If the entire verify URL was passed in, it MUST be percent-encoded.
-    // We safely decode once; if it wasn't encoded, this still works for most cases.
+    // Safely decode once; if sender forgot to encode, try raw
     try {
       const decoded = decodeURIComponent(linkParam);
       targetUrl = new URL(decoded);
-    } catch (e) {
-      // If decode fails, try raw
-      try { targetUrl = new URL(linkParam); }
-      catch (e2) { /* fallthrough to builder */ }
+    } catch {
+      try { targetUrl = new URL(linkParam); } catch { /* fall through */ }
     }
   }
 
-  // Fallback: reconstruct from token/type/redirect_to at top-level
+  // Fallback: reconstruct from top-level parameters
   if (!targetUrl) {
     const token = qs.get('token');
     const type  = qs.get('type') || 'recovery';
     const redirectTo = qs.get('redirect_to') || 'https://fnaaccess-ai.github.io/FNA-Landing/reset.html';
-
-    if (!token) {
-      showError('Missing reset link. Please request a new password reset from the app.');
-      return;
-    }
+    if (!token) { showError('Missing reset link. Please request a new password reset from the app.'); return; }
     const u = new URL(SUPABASE_URL + '/auth/v1/verify');
     u.searchParams.set('token', token);
     u.searchParams.set('type', type);
@@ -92,17 +83,22 @@
     targetUrl = u;
   }
 
-  // Ensure required params exist
   if (!targetUrl.searchParams.get('type')) {
     targetUrl.searchParams.set('type', 'recovery');
   }
 
-  // Show exact destination for copy/paste
+  // Show the exact destination for copy/paste (not clickable)
   rawOut.textContent = targetUrl.toString();
 
-  // Only navigate on explicit human click
+  // Human checkbox gate
+  humanCb.addEventListener('change', () => {
+    goBtn.disabled = !humanCb.checked;
+  });
+
+  // Navigate only on explicit human click
   goBtn.addEventListener('click', () => {
-    // Avoid leaving verify URL in history:
+    if (!humanCb.checked) return;
+    // Avoid leaving verify URL in history
     window.location.replace(targetUrl.toString());
   });
 })();
